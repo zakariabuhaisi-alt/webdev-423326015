@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · ClubHub</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="top"><a class="brand" href="/">ClubHub</a></header>
+  <main id="main" class="stack">
+    <h1>Events for university clubs</h1>
+    <p class="lead">Sign in to see what your clubs are planning and save your place.</p>
+    <div id="status" role="status" aria-live="polite"></div>
+
+    <div class="grid">
+      <form id="signin" class="card" novalidate>
+        <h2>Sign in</h2>
+        <div class="field"><label for="si-email">Email</label><input id="si-email" name="email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="si-password">Password</label><input id="si-password" name="password" type="password" autocomplete="current-password" required></div>
+        <div class="field row">
+          <button type="submit">Sign in</button>
+          <a class="button secondary" id="google" href="/api/auth/google/start">Sign in with Google</a>
+        </div>
+        <p class="hint">Demo accounts: member@clubhub.test or organiser@clubhub.test, password <code>password123</code>.</p>
+      </form>
+
+      <form id="signup" class="card" novalidate>
+        <h2>Create an account</h2>
+        <div class="field"><label for="su-name">Your name</label><input id="su-name" name="name" autocomplete="name" required></div>
+        <div class="field"><label for="su-email">Email</label><input id="su-email" name="email" type="email" autocomplete="email" required></div>
+        <div class="field">
+          <label for="su-password">Password</label>
+          <input id="su-password" name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="pw-hint">
+          <p class="hint" id="pw-hint">At least 8 characters.</p>
+        </div>
+        <div class="field"><button type="submit">Create account</button></div>
+      </form>
+    </div>
+  </main>
+
+  <script type="module">
+    import { api, showStatus } from '/app.js';
+    const status = document.getElementById('status');
+
+    // Messages for the redirects that come back from Google.
+    const errors = {
+      'google-not-configured': 'Sign in with Google is not set up on this server yet.',
+      'google-state': 'The Google sign-in expired or was tampered with. Please try again.',
+      'google-failed': 'Google sign-in did not complete. Please try again.',
+      'google-unverified': 'Google has not verified that email address, so we cannot use it to sign you in.',
+    };
+    const code = new URLSearchParams(location.search).get('error');
+    if (errors[code]) showStatus(status, 'error', errors[code]);
+
+    // Already signed in? Go straight to the events.
+    api('/api/me').then(() => { location.href = '/events.html'; }).catch(() => {});
+
+    for (const [id, path, label] of [['signin', '/api/auth/signin', 'Signing in…'], ['signup', '/api/auth/signup', 'Creating your account…']]) {
+      const form = document.getElementById(id);
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = form.querySelector('button[type=submit]');
+        const original = button.textContent;
+        button.disabled = true;
+        button.textContent = label; // loading state
+        try {
+          await api(path, { method: 'POST', body: Object.fromEntries(new FormData(form)) });
+          location.href = '/events.html';
+        } catch (error) {
+          showStatus(status, 'error', error.message); // error state, as a sentence
+          button.disabled = false;
+          button.textContent = original;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

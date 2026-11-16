@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New event · ClubHub</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="top">
+    <a class="brand" href="/events.html">ClubHub</a>
+    <nav aria-label="Main"><a class="button secondary" href="/events.html">Back to events</a></nav>
+  </header>
+
+  <main id="main" class="stack">
+    <h1>Create an event</h1>
+    <div id="status" role="status" aria-live="polite"></div>
+
+    <form id="form" class="card stack" novalidate>
+      <div class="field"><label for="club">Club</label><select id="club" name="clubId" required></select></div>
+      <div class="field"><label for="title">Title</label><input id="title" name="title" required maxlength="120"></div>
+      <div class="field"><label for="description">Description</label><textarea id="description" name="description" maxlength="2000"></textarea></div>
+
+      <div class="field">
+        <button type="button" class="secondary" id="suggest">Suggest tags and summary</button>
+        <p class="hint">Uses an AI model. You can edit everything it suggests, and you can save without it.</p>
+        <div id="suggest-status" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="field"><label for="tags">Tags (comma separated)</label><input id="tags" name="tags"></div>
+      <div class="field"><label for="summary">One-line summary</label><input id="summary" name="summary" maxlength="160"></div>
+      <div class="field"><label for="location">Location</label><input id="location" name="location"></div>
+      <div class="field"><label for="startsAt">Starts at</label><input id="startsAt" name="startsAt" type="datetime-local" required></div>
+      <div class="field"><label for="capacity">Places</label><input id="capacity" name="capacity" type="number" min="1" max="1000" value="20" required></div>
+      <div class="field"><button type="submit">Create event</button></div>
+    </form>
+  </main>
+
+  <script type="module">
+    import { api, currentUser, el, showStatus } from '/app.js';
+
+    const status = document.getElementById('status');
+    const suggestStatus = document.getElementById('suggest-status');
+    const form = document.getElementById('form');
+
+    await currentUser();
+    const { clubs } = await api('/api/me/clubs');
+    if (clubs.length === 0) {
+      form.hidden = true;
+      showStatus(status, 'empty', 'Only club organisers can create events. Ask an organiser of your club to make you one.');
+    }
+    document.getElementById('club').replaceChildren(...clubs.map((c) => el('option', { value: c.id }, c.name)));
+
+    // The model feature, with all of its states: thinking, failed (fallback), done.
+    document.getElementById('suggest').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Thinking…';
+      showStatus(suggestStatus, '', '');
+      try {
+        const { suggestion } = await api('/api/suggestions', {
+          method: 'POST',
+          body: { title: form.elements.title.value, description: form.elements.description.value },
+        });
+        form.elements.tags.value = suggestion.tags.join(', ');
+        form.elements.summary.value = suggestion.summary;
+        // Labelled as a suggestion, and honest about where it came from.
+        suggestStatus.replaceChildren(el('div', { class: 'suggestion' },
+          el('strong', {}, suggestion.source === 'model' ? 'Suggested by AI. Check it before saving.' : 'Simple keyword suggestion (the AI was not used).'),
+          suggestion.note ? el('span', { class: 'hint' }, suggestion.note) : null));
+      } catch (error) {
+        showStatus(suggestStatus, 'error', error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Suggest tags and summary';
+      }
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = form.querySelector('button[type=submit]');
+      button.disabled = true;
+      button.textContent = 'Creating…';
+      try {
+        const body = Object.fromEntries(new FormData(form));
+        body.tags = body.tags.split(',').map((t) => t.trim()).filter(Boolean);
+        body.capacity = Number(body.capacity);
+        body.startsAt = body.startsAt ? new Date(body.startsAt).toISOString() : '';
+        const { event: created } = await api('/api/events', { method: 'POST', body });
+        showStatus(status, 'success', `"${created.title}" is created. Opening the events list…`);
+        setTimeout(() => { location.href = '/events.html'; }, 900);
+      } catch (error) {
+        showStatus(status, 'error', error.message);
+        button.disabled = false;
+        button.textContent = 'Create event';
+      }
+    });
+  </script>
+</body>
+</html>
