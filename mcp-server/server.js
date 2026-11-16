@@ -9,6 +9,8 @@ function send(message) {
 rl.on('line', (line) => {
   console.error('got: ' + line);
   const msg = JSON.parse(line);
+  // Notification has no id, it expects no answer, so we send nothing
+  if (msg.id === undefined) return;
 
   if (msg.method === 'initialize') {
     send({
