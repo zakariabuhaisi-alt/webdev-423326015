@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upcoming events · ClubHub</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="top">
+    <a class="brand" href="/events.html">ClubHub</a>
+    <nav aria-label="Main">
+      <span id="who" class="meta"></span>
+      <a class="button secondary" id="new-event" href="/new-event.html" hidden>New event</a>
+      <button class="secondary" id="mcp-token" type="button">MCP token</button>
+      <button class="secondary" id="signout" type="button">Sign out</button>
+    </nav>
+  </header>
+
+  <main id="main" class="stack">
+    <h1>Upcoming events</h1>
+    <div id="status" role="status" aria-live="polite"></div>
+    <div id="token-box" hidden></div>
+    <section aria-labelledby="list-title">
+      <h2 id="list-title" class="sr-only">All upcoming events</h2>
+      <div id="list" class="grid" aria-busy="true">
+        <!-- loading state: placeholders with the same size as a card, so nothing jumps -->
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { api, currentUser, el, showStatus, formatDate, signOut } from '/app.js';
+
+    const list = document.getElementById('list');
+    const status = document.getElementById('status');
+
+    const me = await currentUser(); // sends a signed-out visitor to the sign-in page
+    document.getElementById('who').textContent = `Signed in as ${me.user.name}`;
+    document.getElementById('signout').addEventListener('click', signOut);
+
+    api('/api/me/clubs').then(({ clubs }) => { document.getElementById('new-event').hidden = clubs.length === 0; }).catch(() => {});
+
+    document.getElementById('mcp-token').addEventListener('click', async () => {
+      try {
+        const { token } = await api('/api/me/mcp-token', { method: 'POST', body: {} });
+        const box = document.getElementById('token-box');
+        box.hidden = false;
+        box.replaceChildren(el('div', { class: 'card stack' },
+          el('strong', {}, 'Your MCP token (shown once)'),
+          el('p', { class: 'hint' }, 'Put it in MCP_TOKEN for the MCP server. It can do exactly what you can do, for 30 days.'),
+          el('input', { readonly: true, value: token, 'aria-label': 'MCP token' })));
+      } catch (error) {
+        showStatus(status, 'error', error.message);
+      }
+    });
+
+    function card(event) {
+      const full = event.placesLeft === 0 && !event.registered;
+      const action = event.registered
+        ? el('button', { class: 'danger', type: 'button', onclick: () => change(event, 'cancel') }, 'Cancel my place')
+        : el('button', { type: 'button', disabled: full, onclick: () => change(event, 'register') }, full ? 'Full' : 'Save my place');
+      return el('article', { class: 'card stack', 'aria-labelledby': `ev-${event.id}` },
+        el('div', {},
+          el('h2', { id: `ev-${event.id}` }, event.title),
+          el('p', { class: 'meta' }, `${event.club} · ${formatDate(event.startsAt)} · ${event.location}`)),
+        event.summary ? el('p', {}, event.summary) : null,
+        event.tags.length ? el('ul', { class: 'tags', 'aria-label': 'Tags' }, event.tags.map((t) => el('li', {}, t))) : null,
+        el('div', { class: 'row' },
+          action,
+          el('span', { class: 'meta' }, event.registered ? 'You are going' : `${event.placesLeft} of ${event.capacity} places left`)));
+    }
+
+    async function change(event, what) {
+      showStatus(status, '', '');
+      try {
+        if (what === 'register') await api(`/api/events/${event.id}/registrations`, { method: 'POST', body: {} });
+        else await api(`/api/events/${event.id}/registrations/${me.user.id}`, { method: 'DELETE' });
+        // success state: say what happened, and redraw from the server's truth
+        showStatus(status, 'success', what === 'register' ? `Your place at "${event.title}" is saved.` : `You cancelled your place at "${event.title}".`);
+        await load();
+      } catch (error) {
+        showStatus(status, 'error', error.message); // e.g. "This event is full."
+        await load();
+      }
+    }
+
+    async function load() {
+      list.setAttribute('aria-busy', 'true');
+      try {
+        const { events } = await api('/api/events');
+        list.replaceChildren(...(events.length
+          ? events.map(card)
+          : [el('p', { class: 'status empty' }, 'No upcoming events yet. When a club you follow plans one, it appears here.')]));
+      } catch (error) {
+        list.replaceChildren(el('div', { class: 'status error' }, `We could not load the events. ${error.message}`,
+          ' ', el('button', { class: 'secondary', type: 'button', onclick: load }, 'Try again')));
+      } finally {
+        list.setAttribute('aria-busy', 'false');
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
