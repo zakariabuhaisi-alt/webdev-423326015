@@ -1,6 +1,8 @@
 const readline = require('readline');
 
 const rl = readline.createInterface({ input: process.stdin });
+const fs = require('fs');
+const lectures = JSON.parse(fs.readFileSync(__dirname + '/lectures.json', 'utf8'));
 
 function send(message) {
   process.stdout.write(JSON.stringify(message) + '\n');
@@ -52,4 +54,23 @@ rl.on('line', (line) => {
       },
     });
   } // <- tools/list ends here
+    if (msg.method === 'tools/call') {
+    const name = msg.params.name;
+    const args = msg.params.arguments || {};
+
+    if (name === 'find_lecture') {
+      const lecture = lectures.find((l) => l.number === args.number);
+      if (!lecture) {
+        send({ jsonrpc: '2.0', id: msg.id, result: {
+          content: [{ type: 'text', text: 'There is no lecture ' + args.number + '. Lectures are 1 to 10.' }],
+          isError: true,
+        } });
+        return;
+      }
+      send({ jsonrpc: '2.0', id: msg.id, result: {
+        content: [{ type: 'text', text: 'Lecture ' + lecture.number + ': ' + lecture.title + '. Topics: ' + lecture.topics }],
+      } });
+      return;
+    }
+  } // <- tools/call ends here
 }); // <- rl.on ends here
