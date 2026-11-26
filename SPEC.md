@@ -29,34 +29,34 @@ Club events (ClubHub): events for university clubs.
 - Access: must work on a phone screen and with keyboard only.
 
 ## The model feature
-<!-- Which model, which modality, and what it does for a user.
-     Name three things or the check fails: the input it receives, the output it produces,
-     and what happens when the model is slow, rate-limited or wrong. -->
-- Model:
-- Input:
-- Output:
-- When it fails:
+- Model: Google Gemini gemini-2.5-flash over its REST API, with the key in GEMINI_API_KEY
+- Input: only the event title and description, no user data
+- Output: 3 to 5 tags and a one-sentence summary (140 characters max), shown as an editable suggestion on Create event
+- When it fails: after an 8s timeout, a 429, a missing key or a bad answer, it falls back to a keyword heuristic and shows a note. Saving still works.
 
 ## Auth
-<!-- Local sign-in plus at least one provider. Say how an account signing in both ways stays one account. -->
-- Local:
-- Provider:
-- Linking:
+- Local: email and password (at least 8 characters). Only a hash of the password is stored. A wrong email and a wrong password get the same 401 message. A session is a random token in a cookie.
+- Provider: Google, using the OAuth 2.0 authorization-code flow with PKCE and a state value. We check the id_token's iss, aud and exp.
+- Linking: we look up the Google sub first. If it's new, Google must say email_verified, or we refuse with 403. If a local account has the same email, Google gets linked to that account, so it stays one account. If not, a new account with no password is created. 
 
 ## MCP tools
-<!-- At least three tools your own MCP server exposes over this project's data.
-     Each tool calls the same service functions the HTTP API calls, so the same rules apply.
-     A description shorter than 20 characters is not a description. -->
 | Tool | What it does | Who may call it |
 | --- | --- | --- |
-|  |  |  |
+| list_events | lists upcoming events with the club, start time, places left and whether you're registered | any signed-in user with a valid MCP_TOKEN, acting as that user |
+| register_for_event | saves a place at one event by eventId, and is refused if the event is full or you already joined | any signed-in user with a valid MCP_TOKEN, acting as that user |
+| my_registrations | lists the events the signed-in user has a place at, soonest first | any signed-in user with a valid MCP_TOKEN, acting as that user |
 
 ## UI
-<!-- Stack, and the three or more screens. The graded checklist lives in docs/UI.md. -->
+- Stack: plain HTML, CSS and JavaScript (ES modules) in public/, served by Express, with no framework
+- Screens: Sign in / Create account (index.html), Upcoming events (events.html), Create an event with the Suggest button (new-event.html), and a 404 page
 
 ## Architecture
-<!-- Exercise 3. One request traced through every layer, naming the file for each one,
-     plus one place where your own code does not match this layering. -->
+- Route: POST /api/events/:id/registrations in src/routes/events.js reads the request and returns 201
+- Service: register() in src/services/events.js checks the rules (signed in, event full, already registered)
+- Data: src/data/events.js and src/data/registrations.js write the SQL inside one transaction
+- Database: Postgres (Neon on Render, PGlite locally)
+- Same service from MCP: the register_for_event tool in mcp-server/tools.js calls that same register()
+- Does not match: GET /health sits in src/app.js, not in src/routes/.
 
 ## Acceptance criteria
 - [AC-1] New user signs up with email & password: password is stored only as a hash, session starts.
@@ -85,4 +85,4 @@ Club events (ClubHub): events for university clubs.
 | AC-1 |  |
 
 ## Spec vs result
-<!-- After the agent builds the slice: which criteria passed, which it missed or reinterpreted, and what you changed in this spec because of it. -->
+- The agent built tools.js with the 3 project tools, but it is not wired into my hand-written server.js yet.
