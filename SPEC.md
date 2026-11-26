@@ -1,17 +1,32 @@
-# <Project name>
+# ClubHub
 
 <!-- Exercise 2. Write the non-goals first. Every acceptance criterion must be checkable in under a minute.
      Keep these headings exactly as they are: the self-checks look for them by name.
      The full target is on the course site under Resources → The course project. -->
 
 ## Project option
-<!-- One line: lab booking, study groups, club events, or the own project the lecturer approved. -->
+Club events (ClubHub): events for university clubs.
 
 ## Goals
+- Let students discover university club events and register or cancel attendance with seat limits.
+- Let club organisers create events.
+- Expose club and event operations through a shared service layer used by both the REST API and an MCP server.
 
 ## Non-goals
+- No payments: all club events are free, so there is no checkout or billing.
+- No chat or messaging between members: ClubHub lists events, it is not a social network.
+- No native phone app: the website works on a phone browser instead.
+- No email or SMS reminders: members see their registrations on the site.
+- One university only: no multi-campus or multi-tenant setup.
 
 ## Constraints
+- Runtime: Node 22 with Express.
+- Database: Postgres. PGlite locally, Neon in production.
+- Front end: plain HTML/CSS/JavaScript, no framework.
+- Hosting: deployed on Render, auto-deploys main after CI passes.
+- Secrets: never committed. Only .env.example is in the repo.
+- Layering: the REST API and the MCP server call the same service functions.
+- Access: must work on a phone screen and with keyboard only.
 
 ## The model feature
 <!-- Which model, which modality, and what it does for a user.
@@ -44,12 +59,24 @@
      plus one place where your own code does not match this layering. -->
 
 ## Acceptance criteria
-<!-- Every criterion carries an id. A test proves it by naming that id in its title, for example
-     test('AC-3 a booking that overlaps another is refused with 409', ...).
-     Say who acts, what they see, and what must be true in the database. -->
-- [AC-1] <example> A member who signs up for an event with no free places sees "This event is full", and no new row appears in `registrations`.
+- [AC-1] New user signs up with email & password: password is stored only as a hash, session starts.
+- [AC-2] Same email again → 409, no second user.
+- [AC-3] Wrong password or unknown email → same 401 message, no session.
+- [AC-4] A signed-out visitor asking for events gets 401.
+- [AC-5] A signed-in member sees upcoming events, soonest first, with places left. Past events are hidden.
+- [AC-6] Registering with a free place → saved, places left goes down.
+- [AC-7] Full event → "This event is full", no new row.
+- [AC-8] Registering twice → refused.
+- [AC-9] Can't cancel someone else's registration (403). Own, or organiser's → allowed.
+- [AC-10] Only a club organiser can create its events. A member gets 403.
+- [AC-11] Suggest gives 3–5 tags + a one-line summary, with a fallback if the model fails.
+- [AC-12] An unusable model answer is replaced by the fallback.
+- [AC-13] A verified Google email matching a local account → same account, linked.
+- [AC-14] An unverified Google email → refused.
+- [AC-15] MCP tools follow the same rules. No valid token → refused.
+- [AC-16] /health → 200 when the DB is up, 503 when it's down.
 
-### Slice 1: sign-in and <list screen>
+### Slice 1: sign-in and event list
 
 ## Traceability
 <!-- Filled in from Exercise 3 onward: each AC id, and the test that names it. -->
