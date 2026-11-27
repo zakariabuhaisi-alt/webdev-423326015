@@ -4,3 +4,6 @@ One row per agent session. In Gemini CLI, type `/stats` before you quit and copy
 
 | Date | Tool | Input tokens | Output tokens | Credits (if no tokens) | List-price cost |
 |---|---|---|---|---|---|
+| 2026-11-16 | Claude (claude.ai) | n/a | n/a | n/a | |
+
+Claude in claude.ai does not show token counts, so they are not recorded.
