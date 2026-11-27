@@ -1,0 +1,22 @@
+{
+  "name": "clubhub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ClubHub: events for university clubs (TU Sofia web development course project)",
+  "type": "commonjs",
+  "engines": { "node": ">=22.9" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "test": "node --test test/*.test.js",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=src/services/** --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 test/*.test.js && node --test --experimental-test-coverage --test-coverage-include=src/** --test-coverage-lines=80 test/*.test.js",
+    "mcp": "node mcp-server/server.js"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "express": "^4.22.3",
+    "pg": "^8.23.1"
+  }
+}
